@@ -1,3 +1,5 @@
+import json
+
 import vk_api
 from vk_api.bot_longpoll import VkBotEventType, VkBotLongPoll
 
@@ -18,8 +20,8 @@ class MyLongPoll(VkBotLongPoll):
 class VkBot:
 
     def __init__(self):
-        self.vk_session = vk_api.VkApi(token=token)
-        self.longpoll = MyLongPoll(self.vk_session, 207081595)
+        self.vk_session = vk_api.VkApi(token = token)
+        self.longpoll = MyLongPoll(self.vk_session, 235217070)
 
     def run(self):
         for event in self.longpoll.listen():
@@ -30,15 +32,32 @@ class VkBot:
                 # user = utils.get_user_by_id(user_id, chat_id)
                 text = msg['text']
 
-                # print(f'[{chat_id}] От {user_id}: {text}')
+                # print(f'[#{chat_id}] От {user_id}: {text}')
 
-                global fwd, message
+                global fwd, message, username, chat_title
 
                 try:
                     fwd = self.vk_session.method('messages.getByConversationMessageId', {
                         'conversation_message_ids': msg['conversation_message_id'],
                         'peer_id': msg['peer_id']
                     })['items'][0]
+
+                    user_info = self.vk_session.method('users.get',{
+                            'user_ids': user_id,
+                            'fields': 'screen_name',
+                        }
+                    )
+
+                    screen_name = user_info[0]['screen_name']
+                    username = f'@{screen_name}' if screen_name else f'id{user_id}'
+
+                    if msg['peer_id'] > 2000000000:
+                        chat_info = self.vk_session.method('messages.getConversationsById', {
+                            'peer_ids': msg['peer_id']
+                        })
+                        chat_title = chat_info['items'][0]['chat_settings']['title']
+                    else:
+                        chat_title = 'Личные сообщения'
 
                     # print(fwd)
 
@@ -60,7 +79,7 @@ class VkBot:
                     if chat_id in stickers:
                         if sticker:
                             self.vk_session.method('messages.delete', {
-                                'group_id': 207081595,
+                                'group_id': 235217070,
                                 'delete_for_all': 1,
                                 'peer_id': msg['peer_id'],
                                 'cmids': f"{msg['conversation_message_id']}"
@@ -69,7 +88,7 @@ class VkBot:
                     if chat_id in audio_messages:
                         if audio_message:
                             self.vk_session.method('messages.delete', {
-                                'group_id': 207081595,
+                                'group_id': 235217070,
                                 'delete_for_all': 1,
                                 'peer_id': msg['peer_id'],
                                 'cmids': f"{msg['conversation_message_id']}"
@@ -77,7 +96,7 @@ class VkBot:
 
                     if chat_id in messages:  # audio_message
                         self.vk_session.method('messages.delete', {
-                            'group_id': 207081595,
+                            'group_id': 235217070,
                             'delete_for_all': 1,
                             'peer_id': msg['peer_id'],
                             'cmids': f"{msg['conversation_message_id']}"
@@ -86,70 +105,10 @@ class VkBot:
                 except Exception as n:
                     print(f'[ ! ] #{chat_id} | Исключение: {n}')
 
-                """
-
-                with open('bad_words.txt', 'r', encoding="utf-8", newline='') as words:
-                    flag = False
-                    forcheck = event.message.text.lower()
-                    for word in words:
-                        if flag:
-
-                            user.warns += 1
-                            user.save()
-
-                            if user.warns != 3:
-                                self.vk_session.method('messages.send', {
-                                    'chat_id': msg['peer_id'] - 2000000000,
-                                    'message': f'Тебе вынесено предупреждение. Штрафных баллов {user.warns}/3. '
-                                               f'Старайся соблюдать правила беседы, написанные в закреплённом сообщении, 
-                                               иначе нам придется с тобой попрощаться.',
-                                    'random_id': 0
-                                })
-
-                            elif user.warns >= 3:
-                                self.vk_session.method('messages.send', {
-                                    'chat_id': msg['peer_id'] - 2000000000,
-                                    'message': f'Тебе вынесено предупреждение. Штрафных баллов {user.warns}/3. '
-                                               f'Увы, вы набрали максимальное количество штрафных баллов, мы вынуждены 
-                                               попрощаться.',
-                                    'random_id': 0
-                                })
-
-                                try:
-                                    self.vk_session.method('messages.removeChatUser', {
-                                        'user_id': fwd['from_id'],
-                                        'chat_id': msg['peer_id'] - 2000000000
-                                    })
-                                except IndexError:
-                                    self.vk_session.method('messages.send', {
-                                        'chat_id': msg['peer_id'] - 2000000000,
-                                        'message': f'Вы что-то не правильно указали!',
-                                        'random_id': 0
-                                    })
-                                except Exception:
-                                    self.vk_session.method('messages.send', {
-                                        'chat_id': msg['peer_id'] - 2000000000,
-                                        'message': f'Ошибка доступа: пользователя нет в этом чате/он является 
-                                        администратором.',
-                                        'random_id': 0
-                                    })
-                            break
-                        else:
-                            if forcheck.find(word[:-1]) != -1:
-                                flag = True
-                                
-                """
-
                 if user_id in admin_id:
                     try:
                         if fwd:
                             if text == 'кик' and fwd['from_id'] not in admin_id:
-                                self.vk_session.method('messages.sendReaction', {
-                                    'peer_id': msg['peer_id'],
-                                    'cmid': f"{msg['conversation_message_id']}",
-                                    'reaction_id': 2
-                                })
-
                                 self.vk_session.method('messages.send', {
                                     'chat_id': msg['peer_id'] - 2000000000,
                                     'message': f'Увы, нам пора прощаться.',
@@ -163,7 +122,7 @@ class VkBot:
                                 except IndexError:
                                     self.vk_session.method('messages.send', {
                                         'chat_id': msg['peer_id'] - 2000000000,
-                                        'message': f'Вы что-то не правильно указали!',
+                                        'message': f'Вы что-то неправильно указали!',
                                         'random_id': 0
                                     })
                                 except Exception:
@@ -175,12 +134,6 @@ class VkBot:
                                     })
 
                             elif text == 'пред' and fwd['from_id'] not in admin_id:
-                                self.vk_session.method('messages.sendReaction', {
-                                    'peer_id': msg['peer_id'],
-                                    'cmid': f"{msg['conversation_message_id']}",
-                                    'reaction_id': 2
-                                })
-
                                 fwd_user = utils.get_user_by_id(fwd['from_id'], msg['peer_id'] - 2000000000)
 
                                 fwd_user.warns += 1
@@ -212,7 +165,7 @@ class VkBot:
                                     except IndexError:
                                         self.vk_session.method('messages.send', {
                                             'chat_id': msg['peer_id'] - 2000000000,
-                                            'message': f'Вы что-то не правильно указали!',
+                                            'message': f'Вы что-то неправильно указали!',
                                             'random_id': 0
                                         })
                                     except Exception:
@@ -232,12 +185,6 @@ class VkBot:
                                     'message': f'Пробил возврат предов. Текущий баланс пользователя {fwd_user.warns}/3 '
                                                f'очков социальной кармы.',
                                     'random_id': 0
-                                })
-
-                                self.vk_session.method('messages.sendReaction', {
-                                    'peer_id': msg['peer_id'],
-                                    'cmid': f"{msg['conversation_message_id']}",
-                                    'reaction_id': 7
                                 })
                             elif text == 'снять пред':
                                 fwd_user = utils.get_user_by_id(fwd['from_id'], msg['peer_id'] - 2000000000)
@@ -259,12 +206,6 @@ class VkBot:
                                                    f'{fwd_user.warns}/3 очков социальной кармы.',
                                         'random_id': 0
                                     })
-
-                                    self.vk_session.method('messages.sendReaction', {
-                                        'peer_id': msg['peer_id'],
-                                        'cmid': f"{msg['conversation_message_id']}",
-                                        'reaction_id': 7
-                                    })
                         else:
                             if text == 'пред' or text == 'кик' or text == 'снять пред' or text == 'снять преды':
                                 self.vk_session.method('messages.sendReaction', {
@@ -283,9 +224,14 @@ class VkBot:
                 elif text == '#модер' or text == '#moder' or text == '#модератор' or text == '#moderator':
                     self.vk_session.method('messages.send', {
                         'user_id': admin_id,
-                        'message': f'Привет. \n\nВ чате под ID: {chat_id} была вызвана команда для призыва '
-                                   f'модераторов: всем было отправлено соответствующее '
-                                   f'уведомление!\n\nID пользователя: {user_id}.',
+                        'message': (
+                            f'В чате #{chat_title} была {username}(вызвана) команда для призыва модераторов: '
+                            f'всем, кто имеет доступ к командам было отправлено соответствующее уведомление.'
+                        ),
+                        'forward': json.dumps({
+                            'peer_id': msg['peer_id'],
+                            'conversation_message_ids': str(msg['conversation_message_id'])
+                        }),
                         'random_id': 0
                     })
 
